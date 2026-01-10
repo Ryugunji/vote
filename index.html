@@ -140,64 +140,96 @@ button:hover {
       <canvas id="voteChart" style="margin-top:20px;"></canvas>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    const form = document.getElementById('voteForm');
-    const resultDiv = document.getElementById('result');
-    const ctx = document.getElementById('voteChart').getContext('2d');
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    // ดึงคะแนนจาก localStorage
-    let votes = JSON.parse(localStorage.getItem('votes')) || { A: 0, B: 0 };
+<script type="module">
+  // ====== Firebase SDK ======
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // สร้างกราฟ
-    const chart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['อีฟ', 'ทิพย์'],
-        datasets: [{
-          label: 'คะแนนโหวต',
-          data: [votes.A, votes.B],
-          borderWidth: 1
-        }]
-      },
-      options: {
-        scales: {
-          y: { beginAtZero: true, ticks: { stepSize: 1 } }
-        }
+  // ====== Firebase Config (ของคุณ) ======
+  const firebaseConfig = {
+    apiKey: "AIzaSyCtBZegYUqG2bEcIGu_F0C0YvY8SALZ67Y",
+    authDomain: "vote-6c3bf.firebaseapp.com",
+    projectId: "vote-6c3bf",
+    storageBucket: "vote-6c3bf.firebasestorage.app",
+    messagingSenderId: "475011960366",
+    appId: "1:475011960366:web:a5fd20acb39ad2907c99bf",
+    measurementId: "G-62HN6B10RG"
+  };
+
+  // ====== Init Firebase ======
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const voteRef = doc(db, "votes", "count");
+
+  const form = document.getElementById("voteForm");
+  const resultDiv = document.getElementById("result");
+  const resetBtn = document.getElementById("resetBtn");
+  const ctx = document.getElementById("voteChart").getContext("2d");
+
+  // ====== สร้างกราฟ ======
+  const chart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["อีฟ", "ทิพย์"],
+      datasets: [{
+        label: "คะแนนโหวต",
+        data: [0, 0],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
       }
-    });
+    }
+  });
 
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-
-      // กันโหวตซ้ำ
-      if (localStorage.getItem('voted')) {
-        alert('คุณได้โหวตไปแล้ว ขอบคุณครับ/ค่ะ');
-        return;
-      }
-
-      const choice = document.querySelector('input[name="candidate"]:checked').value;
-      votes[choice]++;
-      localStorage.setItem('votes', JSON.stringify(votes));
-      localStorage.setItem('voted', 'true');
-
-      resultDiv.style.display = 'block';
-      resultDiv.innerHTML = `ขอบคุณสำหรับการโหวต!<br>
-คะแนนปัจจุบัน:<br>อีฟ: ${votes.A} คะแนน<br>ทิพย์: ${votes.B} คะแนน`;
-
-      // อัปเดตกราฟ
-      chart.data.datasets[0].data = [votes.A, votes.B];
+  // ====== ฟังการเปลี่ยนแปลงแบบเรียลไทม์ ======
+  onSnapshot(voteRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      chart.data.datasets[0].data = [data.A || 0, data.B || 0];
       chart.update();
-    });
-    // ปุ่มรีเซ็ตคะแนน
-    document.getElementById('resetBtn').addEventListener('click', function () {
-      if (confirm('คุณแน่ใจหรือไม่ว่าต้องการล้างคะแนนทั้งหมด?')) {
-        localStorage.removeItem('votes');
-        localStorage.removeItem('voted');
-        location.reload();
-      }
-    });
+    }
+  });
 
-  </script>
+  // ====== ส่งโหวต ======
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const selected = document.querySelector('input[name="candidate"]:checked');
+    if (!selected) {
+      alert("กรุณาเลือกก่อนโหวต");
+      return;
+    }
+
+    const choice = selected.value;
+
+    const snap = await getDoc(voteRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      const newCount = (data[choice] || 0) + 1;
+      await updateDoc(voteRef, { [choice]: newCount });
+    } else {
+      await setDoc(voteRef, { A: 0, B: 0, [choice]: 1 });
+    }
+
+    resultDiv.style.display = "block";
+    resultDiv.innerHTML = "ขอบคุณสำหรับการโหวต ❤️";
+    form.reset();
+  });
+
+  // ====== รีเซ็ตคะแนน ======
+  resetBtn.addEventListener("click", async () => {
+    if (confirm("คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตคะแนนทั้งหมด?")) {
+      await setDoc(voteRef, { A: 0, B: 0 });
+      alert("รีเซ็ตคะแนนเรียบร้อยแล้ว");
+    }
+  });
+</script>
+
 </body>
 </html>
