@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&family=Prompt:wght@300;400;600&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>โหวตพนักงานดีเด่น</title>
+  <style>
+    body {
+  font-family: 'Kanit', 'Prompt', 'Sarabun', Tahoma, Arial, sans-serif;
+  background: #f4f6f8;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 500px;
+  margin: 40px auto;
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+h1 {
+  text-align: center;
+}
+
+/* layout ซ้าย-ขวา */
+.vote-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.candidate {
+  display: flex;
+  justify-content: center;
+}
+
+/* การ์ดพนักงาน */
+.card {
+  cursor: pointer;
+  width: 100%;
+  max-width: 220px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: 0.2s;
+  border: 2px solid transparent;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+}
+
+input[type="radio"]:checked + .card {
+  border-color: #ff7aa2;
+  box-shadow: 0 8px 18px rgba(255,122,162,0.35);
+}
+
+/* รูปพนักงาน */
+.avatar {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #f2a1b3;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  grid-column: 1 / -1;
+}
+
+button:hover {
+  background: #0056b3;
+}
+
+.result {
+  margin-top: 20px;
+  padding: 10px;
+  background: #e9f5ff;
+  border-radius: 6px;
+}
+
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>❤️ โหวตขวัญใจร้านเริ่ม ❤️</h1>
+    <p>กรุณาเลือกพนักงานดีเด่น (1 คน / 1 สิทธิ์)</p>
+
+<form id="voteForm" class="vote-grid">
+
+  <div class="candidate">
+    <input type="radio" id="c1" name="candidate" value="A" required hidden>
+    <label for="c1" class="card">
+      <img src="eve.jpg" alt="อีฟ" class="avatar">
+      <div class="name">อีฟ</div>
+    </label>
+  </div>
+
+  <div class="candidate">
+    <input type="radio" id="c2" name="candidate" value="B" hidden>
+    <label for="c2" class="card">
+      <img src="tip.jpg" alt="ทิพย์" class="avatar">
+      <div class="name">ทิพย์</div>
+    </label>
+  </div>
+
+  <button type="submit" style="grid-column: 1 / -1;">ส่งคะแนนโหวต</button>
+<button type="button" id="resetBtn" style="margin-top:10px; background:#dc3545;">
+  รีเซ็ตคะแนนทั้งหมด
+</button>
+
+</form>
+
+    <div class="result" id="result" style="display:none;"></div>
+      <canvas id="voteChart" style="margin-top:20px;"></canvas>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const form = document.getElementById('voteForm');
+    const resultDiv = document.getElementById('result');
+    const ctx = document.getElementById('voteChart').getContext('2d');
+
+    // ดึงคะแนนจาก localStorage
+    let votes = JSON.parse(localStorage.getItem('votes')) || { A: 0, B: 0 };
+
+    // สร้างกราฟ
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['อีฟ', 'ทิพย์'],
+        datasets: [{
+          label: 'คะแนนโหวต',
+          data: [votes.A, votes.B],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      // กันโหวตซ้ำ
+      if (localStorage.getItem('voted')) {
+        alert('คุณได้โหวตไปแล้ว ขอบคุณครับ/ค่ะ');
+        return;
+      }
+
+      const choice = document.querySelector('input[name="candidate"]:checked').value;
+      votes[choice]++;
+      localStorage.setItem('votes', JSON.stringify(votes));
+      localStorage.setItem('voted', 'true');
+
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = `ขอบคุณสำหรับการโหวต!<br>
+คะแนนปัจจุบัน:<br>อีฟ: ${votes.A} คะแนน<br>ทิพย์: ${votes.B} คะแนน`;
+
+      // อัปเดตกราฟ
+      chart.data.datasets[0].data = [votes.A, votes.B];
+      chart.update();
+    });
+    // ปุ่มรีเซ็ตคะแนน
+    document.getElementById('resetBtn').addEventListener('click', function () {
+      if (confirm('คุณแน่ใจหรือไม่ว่าต้องการล้างคะแนนทั้งหมด?')) {
+        localStorage.removeItem('votes');
+        localStorage.removeItem('voted');
+        location.reload();
+      }
+    });
+
+  </script>
+</body>
+</html>
