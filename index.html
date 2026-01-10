@@ -197,38 +197,50 @@ button:hover {
   });
 
   // ====== ส่งโหวต ======
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-    const selected = document.querySelector('input[name="candidate"]:checked');
-    if (!selected) {
-      alert("กรุณาเลือกก่อนโหวต");
-      return;
-    }
+  // 🔒 กันโหวตซ้ำในเครื่องเดียว
+  if (localStorage.getItem("voted")) {
+    alert("คุณได้โหวตไปแล้ว ขอบคุณเหี้ยๆครับ");
+    return;
+  }
 
-    const choice = selected.value;
+  const selected = document.querySelector('input[name="candidate"]:checked');
+  if (!selected) {
+    alert("กรุณาเลือกก่อนโหวตด้วยครับสัด");
+    return;
+  }
 
-    const snap = await getDoc(voteRef);
-    if (snap.exists()) {
-      const data = snap.data();
-      const newCount = (data[choice] || 0) + 1;
-      await updateDoc(voteRef, { [choice]: newCount });
-    } else {
-      await setDoc(voteRef, { A: 0, B: 0, [choice]: 1 });
-    }
+  const choice = selected.value;
 
-    resultDiv.style.display = "block";
-    resultDiv.innerHTML = "ขอบคุณสำหรับการโหวต ❤️";
-    form.reset();
-  });
+  const snap = await getDoc(voteRef);
+  if (snap.exists()) {
+    const data = snap.data();
+    const newCount = (data[choice] || 0) + 1;
+    await updateDoc(voteRef, { [choice]: newCount });
+  } else {
+    await setDoc(voteRef, { A: 0, B: 0, [choice]: 1 });
+  }
+
+  // บันทึกว่าเครื่องนี้โหวตแล้ว
+  localStorage.setItem("voted", "true");
+
+  resultDiv.style.display = "block";
+  resultDiv.innerHTML = "ขอบคุณสำหรับการโหวต";
+  form.reset();
+});
+
 
   // ====== รีเซ็ตคะแนน ======
-  resetBtn.addEventListener("click", async () => {
-    if (confirm("คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตคะแนนทั้งหมด?")) {
-      await setDoc(voteRef, { A: 0, B: 0 });
-      alert("รีเซ็ตคะแนนเรียบร้อยแล้ว");
-    }
-  });
+resetBtn.addEventListener("click", async () => {
+  if (confirm("คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตคะแนนทั้งหมด?")) {
+    await setDoc(voteRef, { A: 0, B: 0 });
+    localStorage.removeItem("voted"); // ล้างสิทธิ์โหวต
+    alert("รีเซ็ตคะแนนเรียบร้อยแล้ว");
+  }
+});
+
 </script>
 
 </body>
