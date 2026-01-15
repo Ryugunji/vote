@@ -132,6 +132,12 @@ button:hover {
   <button type="submit" style="grid-column: 1 / -1;">ส่งคะแนนโหวต</button>
 <button type="button" id="resetBtn" style="margin-top:10px; background:#dc3545;">
   รีเซ็ตคะแนนทั้งหมด อย่ากดเล่นเดี๋ยวโดนต่อย
+
+  <button type="button" id="toggleResultBtn" style="margin-top:10px; background:#28a745;">
+  เปิดผลการโหวต
+    
+</button>
+
 </button>
 
 </form>
@@ -143,33 +149,34 @@ button:hover {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script type="module">
-  // ====== Firebase SDK ======
+  // ===== Firebase SDK =====
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-  // ====== Firebase Config (ของคุณ) ======
+  // ===== Firebase Config (ของคุณ - ตัวล่าสุด) =====
   const firebaseConfig = {
-    apiKey: "AIzaSyCtBZegYUqG2bEcIGu_F0C0YvY8SALZ67Y",
+    apiKey: "AIzaSyCtBZegYUqG2bEcIGu_F0COYvY8SAlZ67Y",
     authDomain: "vote-6c3bf.firebaseapp.com",
     projectId: "vote-6c3bf",
     storageBucket: "vote-6c3bf.firebasestorage.app",
     messagingSenderId: "475011960366",
-    appId: "1:475011960366:web:a5fd20acb39ad2907c99bf",
-    measurementId: "G-62HN6B10RG"
+    appId: "1:475011960366:web:e478461edb9b8b727c99bf",
+    measurementId: "G-453MLR1GZ3"
   };
 
-  // ====== Init Firebase ======
+  // ===== Init Firebase =====
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
+  // ===== Refs =====
   const voteRef = doc(db, "votes", "count");
-
   const form = document.getElementById("voteForm");
   const resultDiv = document.getElementById("result");
   const resetBtn = document.getElementById("resetBtn");
+  const toggleBtn = document.getElementById("toggleResultBtn");
   const ctx = document.getElementById("voteChart").getContext("2d");
 
-  // ====== สร้างกราฟ ======
+  // ===== Chart =====
   const chart = new Chart(ctx, {
     type: "bar",
     data: {
@@ -181,65 +188,89 @@ button:hover {
       }]
     },
     options: {
-      scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+
+  // ===== Realtime listener =====
+  onSnapshot(voteRef, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+
+      if (data.showResult) {
+        chart.data.datasets[0].data = [data.A || 0, data.B || 0];
+        chart.update();
+        document.getElementById("voteChart").style.display = "block";
+        resultDiv.style.display = "block";
+      } else {
+        document.getElementById("voteChart").style.display = "none";
+        resultDiv.style.display = "none";
       }
     }
   });
 
-  // ====== ฟังการเปลี่ยนแปลงแบบเรียลไทม์ ======
-  onSnapshot(voteRef, (docSnap) => {
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      chart.data.datasets[0].data = [data.A || 0, data.B || 0];
-      chart.update();
+  // ===== Vote submit (กันโหวตซ้ำ) =====
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    if (localStorage.getItem("voted")) {
+      alert("คุณได้โหวตไปแล้ว ขอบคุณครับ ❤️");
+      return;
+    }
+
+    const selected = document.querySelector('input[name="candidate"]:checked');
+    if (!selected) {
+      alert("กรุณาเลือกก่อนโหวต");
+      return;
+    }
+
+    const choice = selected.value;
+
+    const snap = await getDoc(voteRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      const newCount = (data[choice] || 0) + 1;
+      await updateDoc(voteRef, { [choice]: newCount });
+    } else {
+      await setDoc(voteRef, { A: 0, B: 0, showResult: false, [choice]: 1 });
+    }
+
+    localStorage.setItem("voted", "true");
+    resultDiv.style.display = "block";
+    resultDiv.innerHTML = "ขอบคุณสำหรับการโหวต ❤️";
+    form.reset();
+  });
+
+  // ===== Reset คะแนน =====
+  resetBtn.addEventListener("click", async () => {
+    if (confirm("คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตคะแนนทั้งหมด?")) {
+      await setDoc(voteRef, { A: 0, B: 0, showResult: false });
+      localStorage.removeItem("voted");
+      alert("รีเซ็ตคะแนนเรียบร้อยแล้ว");
     }
   });
 
-  // ====== ส่งโหวต ======
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
+  // ===== Toggle แสดง/ซ่อนผล =====
+const ADMIN_PASSWORD = "0105565117045"; // <<< เปลี่ยนรหัสตรงนี้ได้เลย
 
-  // 🔒 กันโหวตซ้ำในเครื่องเดียว
-  if (localStorage.getItem("voted")) {
-    alert("คุณได้โหวตไปแล้ว ขอบคุณเหี้ยๆครับ");
+toggleBtn.addEventListener("click", async () => {
+  const pass = prompt("กรุณาใส่รหัสผ่านผู้ดูแล");
+
+  if (pass !== ADMIN_PASSWORD) {
+    alert("รหัสผ่านไม่ถูกต้อง อย่าเสือกเดี๋ยวเหงือกสั่น");
     return;
   }
-
-  const selected = document.querySelector('input[name="candidate"]:checked');
-  if (!selected) {
-    alert("กรุณาเลือกก่อนโหวตด้วยครับสัด");
-    return;
-  }
-
-  const choice = selected.value;
 
   const snap = await getDoc(voteRef);
+  let current = false;
+
   if (snap.exists()) {
-    const data = snap.data();
-    const newCount = (data[choice] || 0) + 1;
-    await updateDoc(voteRef, { [choice]: newCount });
-  } else {
-    await setDoc(voteRef, { A: 0, B: 0, [choice]: 1 });
+    current = snap.data().showResult || false;
   }
 
-  // บันทึกว่าเครื่องนี้โหวตแล้ว
-  localStorage.setItem("voted", "true");
-
-  resultDiv.style.display = "block";
-  resultDiv.innerHTML = "ขอบคุณสำหรับการโหวต";
-  form.reset();
+  await updateDoc(voteRef, { showResult: !current });
+  toggleBtn.innerText = !current ? "ปิดผลการโหวต" : "เปิดผลการโหวต";
 });
-
-  // ====== รีเซ็ตคะแนน ======
-resetBtn.addEventListener("click", async () => {
-  if (confirm("คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตคะแนนทั้งหมด?")) {
-    await setDoc(voteRef, { A: 0, B: 0 });
-    localStorage.removeItem("voted"); // ล้างสิทธิ์โหวต
-    alert("รีเซ็ตคะแนนเรียบร้อยแล้ว");
-  }
-});
-
 </script>
 
 </body>
